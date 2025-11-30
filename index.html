@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Noise Background Generator</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: rgba(255,255,255,0.95);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 30px;
+      max-width: 450px;
+      width: 100%;
+    }
+    h1 {
+      text-align: center;
+      color: #667eea;
+      margin-bottom: 25px;
+      font-size: 1.8rem;
+    }
+    .form-group {
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #333;
+      font-size: 0.9rem;
+    }
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border 0.3s;
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .color-picker-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    input[type="color"] {
+      width: 60px;
+      height: 45px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s;
+      margin-top: 10px;
+    }
+    button:active { transform: scale(0.98); }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .preview {
+      margin-top: 25px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 3px solid #667eea;
+      display: none;
+    }
+    .preview img {
+      width: 100%;
+      display: block;
+    }
+    .result-url {
+      margin-top: 15px;
+      padding: 12px;
+      background: #f0f0f0;
+      border-radius: 8px;
+      word-break: break-all;
+      font-size: 0.85rem;
+      display: none;
+    }
+    .result-url a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .hidden { display: none !important; }
+    .error {
+      background: #ffe0e0;
+      color: #c00;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 Noise Generator</h1>
+    
+    <div class="form-group">
+      <label>Color Mode</label>
+      <select id="colorMode" onchange="toggleColorMode()">
+        <option value="hex">HEX Color</option>
+        <option value="rgb">RGB Values</option>
+      </select>
+    </div>
+
+    <!-- HEX Mode -->
+    <div id="hexMode">
+      <div class="form-group">
+        <label>Pick Color</label>
+        <div class="color-picker-group">
+          <input type="color" id="colorPicker" value="#3f82e0" onchange="syncHexInput()">
+          <input type="text" id="hexInput" value="3f82e0" maxlength="6" placeholder="3f82e0">
+        </div>
+      </div>
+    </div>
+
+    <!-- RGB Mode -->
+    <div id="rgbMode" class="hidden">
+      <div class="form-group">
+        <label>Red (0-255)</label>
+        <input type="number" id="r" min="0" max="255" value="63">
+      </div>
+      <div class="form-group">
+        <label>Green (0-255)</label>
+        <input type="number" id="g" min="0" max="255" value="130">
+      </div>
+      <div class="form-group">
+        <label>Blue (0-255)</label>
+        <input type="number" id="b" min="0" max="255" value="224">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Tiles (1-50)</label>
+      <input type="number" id="tiles" min="1" max="50" value="40">
+    </div>
+
+    <div class="form-group">
+      <label>Tile Size (1-20)</label>
+      <input type="number" id="tileSize" min="1" max="20" value="7">
+    </div>
+
+    <div class="form-group">
+      <label>Border Width (0-15)</label>
+      <input type="number" id="borderWidth" min="0" max="15" value="0">
+    </div>
+
+    <div class="form-group">
+      <label>Mode</label>
+      <select id="mode">
+        <option value="0">Brightness (Shades)</option>
+        <option value="1">Around (Colorful)</option>
+      </select>
+    </div>
+
+    <button onclick="generateNoise()" id="generateBtn">Generate & Upload</button>
+
+    <div class="error" id="errorBox"></div>
+    
+    <div class="preview" id="previewBox">
+      <img id="previewImg" alt="Generated Noise">
+    </div>
+
+    <div class="result-url" id="resultUrl"></div>
+  </div>
+
+  <script>
+    function toggleColorMode() {
+      const mode = document.getElementById('colorMode').value;
+      document.getElementById('hexMode').classList.toggle('hidden', mode !== 'hex');
+      document.getElementById('rgbMode').classList.toggle('hidden', mode !== 'rgb');
+    }
+
+    function syncHexInput() {
+      const color = document.getElementById('colorPicker').value;
+      document.getElementById('hexInput').value = color.substring(1);
+    }
+
+    async function generateNoise() {
+      const btn = document.getElementById('generateBtn');
+      const errorBox = document.getElementById('errorBox');
+      const previewBox = document.getElementById('previewBox');
+      const resultUrl = document.getElementById('resultUrl');
+      const previewImg = document.getElementById('previewImg');
+
+      // Reset UI
+      btn.disabled = true;
+      btn.textContent = '⚡ Processing...';
+      errorBox.style.display = 'none';
+      previewBox.style.display = 'none';
+      resultUrl.style.display = 'none';
+
+      const colorMode = document.getElementById('colorMode').value;
+      const payload = {
+        colorMode,
+        hex: document.getElementById('hexInput').value,
+        r: document.getElementById('r').value,
+        g: document.getElementById('g').value,
+        b: document.getElementById('b').value,
+        tiles: document.getElementById('tiles').value,
+        tileSize: document.getElementById('tileSize').value,
+        borderWidth: document.getElementById('borderWidth').value,
+        mode: document.getElementById('mode').value
+      };
+
+      try {
+        const response = await fetch('/.netlify/functions/noise-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.url) {
+          previewImg.src = data.url;
+          previewBox.style.display = 'block';
+          resultUrl.innerHTML = `<strong>Hosted URL:</strong><br><a href="${data.url}" target="_blank">${data.url}</a>`;
+          resultUrl.style.display = 'block';
+        } else {
+          throw new Error(data.error || 'Unknown error');
+        }
+      } catch (error) {
+        errorBox.textContent = `Error: ${error.message}`;
+        errorBox.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate & Upload';
+      }
+    }
+  </script>
+</body>
+  </html>
